@@ -1,0 +1,24 @@
+This is a custom distribution of the Bullet Physics Library, version 2.76.
+
+This distribution includes a custom CMake-based build system tailored to fit in
+the Athena Game Framework. Only the library is distributed (ie. there is no demo
+application or tool included).
+
+
+License
+-------
+
+Bullet's license is unchanged: this library is released under the ZLib License.
+
+The license of Bullet is contained in the file 'LICENSE'.
+
+
+Compilation
+-----------
+
+It is recommended to compile the library in a separate folder. Here's how I do it:
+
+  $ mkdir build
+  $ cd build
+  $ cmake ..
+  $ make
