@@ -6,9 +6,15 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: None (CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif()
 
-IF (USE_DOUBLE_PRECISION)
-    ADD_DEFINITIONS( -DBT_USE_DOUBLE_PRECISION)
-ENDIF (USE_DOUBLE_PRECISION)
+if (NOT DEFINED USE_DOUBLE_PRECISION)
+    set(BULLET_USE_DOUBLE_PRECISION OFF CACHE BOOL "Use double precision")
+else()
+    set(BULLET_USE_DOUBLE_PRECISION ${USE_DOUBLE_PRECISION})
+endif()
+
+if (NOT DEFINED BULLET_NO_PROFILE)
+    set(BULLET_NO_PROFILE OFF CACHE BOOL "Disable the profiling feature")
+endif()
 
 
 # Set the output path
@@ -24,11 +30,28 @@ if (EXISTS "${BULLET_SOURCE_DIR}/dependencies/xmake/XMake.cmake")
 endif()
 
 xmake_init_static(BULLET)
-xmake_add_include_paths(BULLET ${BULLET_SOURCE_DIR})
+xmake_add_include_paths(BULLET ${BULLET_SOURCE_DIR} ${ATHENA_BINARY_DIR}/include/)
 xmake_add_link_paths(BULLET "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
 xmake_add_link_targets(BULLET bullet)
 
 include_directories(${BULLET_SOURCE_DIR})
+
+
+# Generate the cofiguration file
+set(BT_USE_DOUBLE_PRECISION ${BULLET_USE_DOUBLE_PRECISION})
+set(BT_NO_PROFILE ${BULLET_NO_PROFILE})
+
+configure_file(${BULLET_SOURCE_DIR}/btConfig.h.in
+               ${ATHENA_BINARY_DIR}/include/Bullet/btConfig.h)
+
+
+if (BT_USE_DOUBLE_PRECISION)
+    add_definitions(-DBT_USE_DOUBLE_PRECISION)
+endif()
+
+if (BT_NO_PROFILE)
+    add_definitions(-DBT_NO_PROFILE)
+endif()
 
 
 # List the source files
