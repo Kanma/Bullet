@@ -202,3 +202,7 @@ SET(SRCS ${BulletCollision_SRCS}
 
 # Declaration of the library
 add_library(bullet STATIC ${SRCS})
+
+if (NOT WIN32)
+    set_target_properties(bullet PROPERTIES COMPILE_FLAGS "-fPIC")
+endif()
