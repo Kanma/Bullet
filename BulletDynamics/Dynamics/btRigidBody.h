@@ -21,6 +21,8 @@ subject to the following restrictions:
 #include "BulletCollision/BroadphaseCollision/btBroadphaseProxy.h"
 #include "BulletCollision/CollisionDispatch/btCollisionObject.h"
 
+#include <stdio.h>
+
 class btCollisionShape;
 class btMotionState;
 class btTypedConstraint;
@@ -361,6 +363,13 @@ public:
 	inline void setAngularVelocity(const btVector3& ang_vel) 
 	{ 
 		m_angularVelocity = ang_vel; 
+	}
+
+	// Added for the Athena Game Framework
+	inline void resetVelocities()
+	{
+		m_deltaLinearVelocity.setZero();
+		m_deltaAngularVelocity.setZero();
 	}
 
 	btVector3 getVelocityInLocalPoint(const btVector3& rel_pos) const
