@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 2.6)
 project(BULLET)
 
-# Options
-if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: None (CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel." FORCE)
-endif()
+
+##########################################################################################
+# Settings
 
 if (NOT DEFINED USE_DOUBLE_PRECISION)
     set(BULLET_USE_DOUBLE_PRECISION OFF CACHE BOOL "Use double precision")
@@ -17,45 +16,46 @@ if (NOT DEFINED BULLET_NO_PROFILE)
 endif()
 
 
-# Set the output path
-if (NOT ATHENA_BINARY_DIR)
-    set(ATHENA_BINARY_DIR "${BULLET_BINARY_DIR}")
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${BULLET_BINARY_DIR}/lib")
+##########################################################################################
+# XMake-related settings
+
+# Set the output paths
+if (NOT DEFINED XMAKE_BINARY_DIR)
+    set(XMAKE_BINARY_DIR "${BULLET_BINARY_DIR}")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${XMAKE_BINARY_DIR}/bin")
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${XMAKE_BINARY_DIR}/lib")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${XMAKE_BINARY_DIR}/bin")
+endif()
+
+# Set the dependencies path
+if (NOT DEFINED XMAKE_DEPENDENCIES_DIR)
+    set(XMAKE_DEPENDENCIES_DIR "${BULLET_SOURCE_DIR}/dependencies")
 endif()
 
 
-# XMake settings
-if (EXISTS "${BULLET_SOURCE_DIR}/dependencies/xmake/XMake.cmake")
-    include("${BULLET_SOURCE_DIR}/dependencies/xmake/XMake.cmake")
+##########################################################################################
+# XMake importation
+
+if (NOT EXISTS "${XMAKE_DEPENDENCIES_DIR}/XMake/XMake.cmake")
+    message(FATAL_ERROR
+"Missing dependency: XMake
+This distribution of Bullet requires XMake.
+
+It is provided as a GIT submodule of this repository.
+
+Did you forgot to execute the following commands?
+   git submodule init
+   git submodule update")
 endif()
 
-xmake_init_static(BULLET)
-xmake_add_include_paths(BULLET ${BULLET_SOURCE_DIR} ${ATHENA_BINARY_DIR}/include/)
-xmake_add_link_paths(BULLET "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
-xmake_add_link_targets(BULLET bullet)
-
-include_directories(${BULLET_SOURCE_DIR})
+include("${XMAKE_DEPENDENCIES_DIR}/XMake/XMake.cmake")
 
 
-# Generate the cofiguration file
-set(BT_USE_DOUBLE_PRECISION ${BULLET_USE_DOUBLE_PRECISION})
-set(BT_NO_PROFILE ${BULLET_NO_PROFILE})
-
-configure_file(${BULLET_SOURCE_DIR}/btConfig.h.in
-               ${ATHENA_BINARY_DIR}/include/Bullet/btConfig.h)
-
-
-if (BT_USE_DOUBLE_PRECISION)
-    add_definitions(-DBT_USE_DOUBLE_PRECISION)
-endif()
-
-if (BT_NO_PROFILE)
-    add_definitions(-DBT_NO_PROFILE)
-endif()
-
+##########################################################################################
+# Declaration of the library
 
 # List the source files
-SET(BulletCollision_SRCS
+set(BulletCollision_SRCS
 	BulletCollision/BroadphaseCollision/btAxisSweep3.cpp
     # BulletCollision/BroadphaseCollision/btBroadphaseProxy.cpp
 	BulletCollision/BroadphaseCollision/btCollisionAlgorithm.cpp
@@ -150,7 +150,7 @@ SET(BulletCollision_SRCS
 )
 
 
-SET(BulletDynamics_SRCS
+set(BulletDynamics_SRCS
 	BulletDynamics/Character/btKinematicCharacterController.cpp
 	BulletDynamics/ConstraintSolver/btConeTwistConstraint.cpp
 	BulletDynamics/ConstraintSolver/btContactConstraint.cpp
@@ -173,7 +173,7 @@ SET(BulletDynamics_SRCS
 )
 
 
-SET(BulletSoftBody_SRCS
+set(BulletSoftBody_SRCS
 	BulletSoftBody/btSoftBody.cpp
 	BulletSoftBody/btSoftBodyConcaveCollisionAlgorithm.cpp
 	BulletSoftBody/btSoftBodyHelpers.cpp
@@ -184,7 +184,7 @@ SET(BulletSoftBody_SRCS
 )
 
 
-SET(LinearMath_SRCS
+set(LinearMath_SRCS
 	LinearMath/btAlignedAllocator.cpp
 	LinearMath/btConvexHull.cpp
 	LinearMath/btGeometryUtil.cpp
@@ -193,16 +193,40 @@ SET(LinearMath_SRCS
 )
 
 
-SET(SRCS ${BulletCollision_SRCS}
+set(SRCS ${BulletCollision_SRCS}
          ${BulletDynamics_SRCS}
          ${BulletSoftBody_SRCS}
          ${LinearMath_SRCS}
 )
 
 
-# Declaration of the library
-add_library(bullet STATIC ${SRCS})
+# List the include paths
+set(INCLUDE_PATHS "${BULLET_SOURCE_DIR}"
+                  "${XMAKE_BINARY_DIR}/include")
 
-if (NOT WIN32)
-    set_target_properties(bullet PROPERTIES COMPILE_FLAGS "-fPIC")
+include_directories(${INCLUDE_PATHS})
+
+
+# Generate the configuration file
+set(BT_USE_DOUBLE_PRECISION ${BULLET_USE_DOUBLE_PRECISION})
+set(BT_NO_PROFILE ${BULLET_NO_PROFILE})
+
+configure_file(${BULLET_SOURCE_DIR}/btConfig.h.in
+               ${XMAKE_BINARY_DIR}/include/Bullet/btConfig.h)
+
+
+if (BT_USE_DOUBLE_PRECISION)
+    add_definitions(-DBT_USE_DOUBLE_PRECISION)
 endif()
+
+if (BT_NO_PROFILE)
+    add_definitions(-DBT_NO_PROFILE)
+endif()
+
+
+# Declaration of the library
+xmake_create_static_library(BULLET bullet ${SRCS})
+
+
+# Exportations
+xmake_export_include_paths(BULLET ${INCLUDE_PATHS})
