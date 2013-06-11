@@ -1,4 +1,4 @@
-This is a custom distribution of the Bullet Physics Library, version 2.76.
+This is a custom distribution of the Bullet Physics Library, version 2.81.
 
 This distribution includes a custom XMake-based build system. Only the library
 is distributed (ie. there is no demo application or tool included).

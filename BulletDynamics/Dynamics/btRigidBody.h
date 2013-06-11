@@ -13,15 +13,13 @@ subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef RIGIDBODY_H
-#define RIGIDBODY_H
+#ifndef BT_RIGIDBODY_H
+#define BT_RIGIDBODY_H
 
 #include "LinearMath/btAlignedObjectArray.h"
 #include "LinearMath/btTransform.h"
 #include "BulletCollision/BroadphaseCollision/btBroadphaseProxy.h"
 #include "BulletCollision/CollisionDispatch/btCollisionObject.h"
-
-#include <stdio.h>
 
 class btCollisionShape;
 class btMotionState;
@@ -42,7 +40,11 @@ extern bool gDisableDeactivation;
 
 enum	btRigidBodyFlags
 {
-	BT_DISABLE_WORLD_GRAVITY = 1
+	BT_DISABLE_WORLD_GRAVITY = 1,
+	///The BT_ENABLE_GYROPSCOPIC_FORCE can easily introduce instability
+	///So generally it is best to not enable it. 
+	///If really needed, run at a high frequency like 1000 Hertz:	///See Demos/GyroscopicDemo for an example use
+	BT_ENABLE_GYROPSCOPIC_FORCE = 2
 };
 
 
@@ -91,7 +93,7 @@ class btRigidBody  : public btCollisionObject
 	int				m_rigidbodyFlags;
 	
 	int				m_debugBodyId;
-
+	
 
 protected:
 
@@ -127,6 +129,9 @@ public:
 
 		///best simulation results when friction is non-zero
 		btScalar			m_friction;
+		///the m_rollingFriction prevents rounded shapes, such as spheres, cylinders and capsules from rolling forever.
+		///See Bullet/Demos/RollingFrictionDemo for usage
+		btScalar			m_rollingFriction;
 		///best simulation results using zero restitution.
 		btScalar			m_restitution;
 
@@ -149,6 +154,7 @@ public:
 			m_linearDamping(btScalar(0.)),
 			m_angularDamping(btScalar(0.)),
 			m_friction(btScalar(0.5)),
+			m_rollingFriction(btScalar(0)),
 			m_restitution(btScalar(0.)),
 			m_linearSleepingThreshold(btScalar(0.8)),
 			m_angularSleepingThreshold(btScalar(1.f)),
@@ -190,13 +196,13 @@ public:
 	///but a rigidbody is derived from btCollisionObject, so we can safely perform an upcast
 	static const btRigidBody*	upcast(const btCollisionObject* colObj)
 	{
-		if (colObj->getInternalType()==btCollisionObject::CO_RIGID_BODY)
+		if (colObj->getInternalType()&btCollisionObject::CO_RIGID_BODY)
 			return (const btRigidBody*)colObj;
 		return 0;
 	}
 	static btRigidBody*	upcast(btCollisionObject* colObj)
 	{
-		if (colObj->getInternalType()==btCollisionObject::CO_RIGID_BODY)
+		if (colObj->getInternalType()&btCollisionObject::CO_RIGID_BODY)
 			return (btRigidBody*)colObj;
 		return 0;
 	}
@@ -272,12 +278,12 @@ public:
 		m_totalForce += force*m_linearFactor;
 	}
 
-	const btVector3& getTotalForce()
+	const btVector3& getTotalForce() const
 	{
 		return m_totalForce;
 	};
 
-	const btVector3& getTotalTorque()
+	const btVector3& getTotalTorque() const
 	{
 		return m_totalTorque;
 	};
@@ -363,13 +369,6 @@ public:
 	inline void setAngularVelocity(const btVector3& ang_vel) 
 	{ 
 		m_angularVelocity = ang_vel; 
-	}
-
-	// Added for the Athena Game Framework
-	inline void resetVelocities()
-	{
-		m_deltaLinearVelocity.setZero();
-		m_deltaAngularVelocity.setZero();
 	}
 
 	btVector3 getVelocityInLocalPoint(const btVector3& rel_pos) const
@@ -503,7 +502,7 @@ public:
 		return (getBroadphaseProxy() != 0);
 	}
 
-	virtual bool checkCollideWithOverride(btCollisionObject* co);
+	virtual bool checkCollideWithOverride(const  btCollisionObject* co) const;
 
 	void addConstraintRef(btTypedConstraint* c);
 	void removeConstraintRef(btTypedConstraint* c);
@@ -513,7 +512,7 @@ public:
 		return m_constraintRefs[index];
 	}
 
-	int getNumConstraintRefs()
+	int getNumConstraintRefs() const
 	{
 		return m_constraintRefs.size();
 	}
@@ -528,85 +527,7 @@ public:
 		return m_rigidbodyFlags;
 	}
 
-
-	////////////////////////////////////////////////
-	///some internal methods, don't use them
-		
-	btVector3& internalGetDeltaLinearVelocity()
-	{
-		return m_deltaLinearVelocity;
-	}
-
-	btVector3& internalGetDeltaAngularVelocity()
-	{
-		return m_deltaAngularVelocity;
-	}
-
-	const btVector3& internalGetAngularFactor() const
-	{
-		return m_angularFactor;
-	}
-
-	const btVector3& internalGetInvMass() const
-	{
-		return m_invMass;
-	}
-	
-	btVector3& internalGetPushVelocity()
-	{
-		return m_pushVelocity;
-	}
-
-	btVector3& internalGetTurnVelocity()
-	{
-		return m_turnVelocity;
-	}
-
-	SIMD_FORCE_INLINE void	internalGetVelocityInLocalPointObsolete(const btVector3& rel_pos, btVector3& velocity ) const
-	{
-		velocity = getLinearVelocity()+m_deltaLinearVelocity + (getAngularVelocity()+m_deltaAngularVelocity).cross(rel_pos);
-	}
-
-	SIMD_FORCE_INLINE void	internalGetAngularVelocity(btVector3& angVel) const
-	{
-		angVel = getAngularVelocity()+m_deltaAngularVelocity;
-	}
-
-
-	//Optimization for the iterative solver: avoid calculating constant terms involving inertia, normal, relative position
-	SIMD_FORCE_INLINE void internalApplyImpulse(const btVector3& linearComponent, const btVector3& angularComponent,const btScalar impulseMagnitude)
-	{
-		if (m_inverseMass)
-		{
-			m_deltaLinearVelocity += linearComponent*impulseMagnitude;
-			m_deltaAngularVelocity += angularComponent*(impulseMagnitude*m_angularFactor);
-		}
-	}
-
-	SIMD_FORCE_INLINE void internalApplyPushImpulse(const btVector3& linearComponent, const btVector3& angularComponent,btScalar impulseMagnitude)
-	{
-		if (m_inverseMass)
-		{
-			m_pushVelocity += linearComponent*impulseMagnitude;
-			m_turnVelocity += angularComponent*(impulseMagnitude*m_angularFactor);
-		}
-	}
-	
-	void	internalWritebackVelocity()
-	{
-		if (m_inverseMass)
-		{
-			setLinearVelocity(getLinearVelocity()+ m_deltaLinearVelocity);
-			setAngularVelocity(getAngularVelocity()+m_deltaAngularVelocity);
-			m_deltaLinearVelocity.setZero();
-			m_deltaAngularVelocity .setZero();
-			//m_originalBody->setCompanionId(-1);
-		}
-	}
-
-
-	void	internalWritebackVelocity(btScalar timeStep);
-	
+	btVector3 computeGyroscopicForce(btScalar maxGyroscopicForce) const;
 
 	///////////////////////////////////////////////
 
@@ -675,5 +596,5 @@ struct	btRigidBodyDoubleData
 
 
 
-#endif
+#endif //BT_RIGIDBODY_H
 

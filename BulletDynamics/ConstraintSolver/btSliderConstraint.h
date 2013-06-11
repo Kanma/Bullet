@@ -22,8 +22,8 @@ TODO:
  - add conversion for ODE constraint solver
 */
 
-#ifndef SLIDER_CONSTRAINT_H
-#define SLIDER_CONSTRAINT_H
+#ifndef BT_SLIDER_CONSTRAINT_H
+#define BT_SLIDER_CONSTRAINT_H
 
 
 
@@ -60,7 +60,7 @@ enum btSliderFlags
 };
 
 
-class btSliderConstraint : public btTypedConstraint
+ATTRIBUTE_ALIGNED16(class) btSliderConstraint : public btTypedConstraint
 {
 protected:
 	///for backwards compatibility during the transition to 'getInfo/getInfo2'
@@ -155,6 +155,8 @@ protected:
 	//------------------------    
 	void initParams();
 public:
+	BT_DECLARE_ALIGNED_ALLOCATOR();
+	
 	// constructors
     btSliderConstraint(btRigidBody& rbA, btRigidBody& rbB, const btTransform& frameInA, const btTransform& frameInB ,bool useLinearReferenceFrameA);
     btSliderConstraint(btRigidBody& rbB, const btTransform& frameInB, bool useLinearReferenceFrameA);
@@ -236,7 +238,10 @@ public:
 	btScalar getTargetAngMotorVelocity() { return m_targetAngMotorVelocity; }
 	void setMaxAngMotorForce(btScalar maxAngMotorForce) { m_maxAngMotorForce = maxAngMotorForce; }
 	btScalar getMaxAngMotorForce() { return m_maxAngMotorForce; }
-	btScalar getLinearPos() { return m_linPos; }
+
+	btScalar getLinearPos() const { return m_linPos; }
+	btScalar getAngularPos() const { return m_angPos; }
+	
 	
 
 	// access for ODE solver
@@ -254,6 +259,15 @@ public:
 	// access for UseFrameOffset
 	bool getUseFrameOffset() { return m_useOffsetForConstraintFrame; }
 	void setUseFrameOffset(bool frameOffsetOnOff) { m_useOffsetForConstraintFrame = frameOffsetOnOff; }
+
+	void setFrames(const btTransform& frameA, const btTransform& frameB) 
+	{ 
+		m_frameInA=frameA; 
+		m_frameInB=frameB;
+		calculateTransforms(m_rbA.getCenterOfMassTransform(),m_rbB.getCenterOfMassTransform());
+		buildJacobian();
+	} 
+
 
 	///override the default global value of a parameter (such as ERP or CFM), optionally provide the axis (0..5). 
 	///If no axis is provided, it uses the default axis for this constraint.
@@ -317,5 +331,5 @@ SIMD_FORCE_INLINE	const char*	btSliderConstraint::serialize(void* dataBuffer, bt
 
 
 
-#endif //SLIDER_CONSTRAINT_H
+#endif //BT_SLIDER_CONSTRAINT_H
 
